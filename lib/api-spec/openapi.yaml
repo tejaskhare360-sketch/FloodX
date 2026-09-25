@@ -1,0 +1,315 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: flood-intelligence
+    description: UrbanShield demo flood intelligence operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /zones:
+    get:
+      operationId: getZones
+      tags: [flood-intelligence]
+      summary: List predicted flood-risk zones
+      responses:
+        "200":
+          description: Risk zones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Zone"
+  /zones/{zoneId}:
+    get:
+      operationId: getZone
+      tags: [flood-intelligence]
+      summary: Get one risk zone
+      parameters:
+        - name: zoneId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Risk zone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Zone"
+        "404":
+          description: Zone not found
+  /predict:
+    post:
+      operationId: predictRisk
+      tags: [flood-intelligence]
+      summary: Calculate a deterministic demo risk prediction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PredictionInput"
+      responses:
+        "200":
+          description: Risk prediction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prediction"
+  /reports:
+    get:
+      operationId: getReports
+      tags: [flood-intelligence]
+      summary: List citizen waterlogging reports
+      responses:
+        "200":
+          description: Citizen reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Report"
+    post:
+      operationId: createReport
+      tags: [flood-intelligence]
+      summary: Submit a citizen waterlogging report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "201":
+          description: Created report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+  /alerts:
+    get:
+      operationId: getAlerts
+      tags: [flood-intelligence]
+      summary: List current flood alerts
+      responses:
+        "200":
+          description: Current alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Alert"
+  /statistics:
+    get:
+      operationId: getStatistics
+      tags: [flood-intelligence]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Current statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Statistics"
+  /simulation:
+    post:
+      operationId: runSimulation
+      tags: [flood-intelligence]
+      summary: Run the demo rainfall scenario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulationInput"
+      responses:
+        "200":
+          description: Updated risk zones and counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationResult"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    Zone:
+      type: object
+      required:
+        - id
+        - name
+        - latitude
+        - longitude
+        - rainfall
+        - elevation
+        - slope
+        - drainageCapacity
+        - imperviousSurface
+        - historicalFloods
+        - riskScore
+        - riskLevel
+        - factors
+        - affectedRoads
+      properties:
+        id: { type: string }
+        name: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        rainfall: { type: number }
+        elevation: { type: number }
+        slope: { type: number }
+        drainageCapacity: { type: number }
+        imperviousSurface: { type: number }
+        historicalFloods: { type: integer }
+        riskScore: { type: integer, minimum: 0, maximum: 100 }
+        riskLevel:
+          type: string
+          enum: [LOW, MODERATE, HIGH, CRITICAL]
+        factors:
+          type: object
+          required: [rainfall, drainage, historical, elevation, landUse, slope]
+          properties:
+            rainfall: { type: number }
+            drainage: { type: number }
+            historical: { type: number }
+            elevation: { type: number }
+            landUse: { type: number }
+            slope: { type: number }
+        affectedRoads:
+          type: array
+          items: { type: string }
+    PredictionInput:
+      type: object
+      required: [rainfall, duration, elevation, slope, drainageCapacity, imperviousSurface, historicalFloods]
+      properties:
+        rainfall: { type: number, minimum: 0, maximum: 200 }
+        duration: { type: number, minimum: 1, maximum: 24 }
+        elevation: { type: number }
+        slope: { type: number }
+        drainageCapacity: { type: number, minimum: 0, maximum: 100 }
+        imperviousSurface: { type: number, minimum: 0, maximum: 100 }
+        historicalFloods: { type: integer, minimum: 0 }
+    Prediction:
+      type: object
+      required: [riskScore, riskLevel, factors, engine]
+      properties:
+        riskScore: { type: integer, minimum: 0, maximum: 100 }
+        riskLevel:
+          type: string
+          enum: [LOW, MODERATE, HIGH, CRITICAL]
+        factors:
+          type: object
+          required: [rainfall, drainage, historical, elevation, landUse, slope]
+          properties:
+            rainfall: { type: number }
+            drainage: { type: number }
+            historical: { type: number }
+            elevation: { type: number }
+            landUse: { type: number }
+            slope: { type: number }
+        engine: { type: string }
+    ReportInput:
+      type: object
+      required: [zoneId, waterLevel, description]
+      properties:
+        zoneId: { type: string }
+        waterLevel:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, SEVERE]
+        description: { type: string, minLength: 4, maxLength: 500 }
+        photoName: { type: ["string", "null"] }
+    Report:
+      type: object
+      required: [id, zoneId, zoneName, waterLevel, description, photoName, status, reportedAt]
+      properties:
+        id: { type: string }
+        zoneId: { type: string }
+        zoneName: { type: string }
+        waterLevel:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, SEVERE]
+        description: { type: string }
+        photoName: { type: ["string", "null"] }
+        status: { type: string, enum: [UNVERIFIED, REVIEWING, VERIFIED] }
+        reportedAt: { type: string }
+    Alert:
+      type: object
+      required: [id, zoneId, zoneName, level, riskScore, message, createdAt]
+      properties:
+        id: { type: string }
+        zoneId: { type: string }
+        zoneName: { type: string }
+        level:
+          type: string
+          enum: [MODERATE, HIGH, CRITICAL]
+        riskScore: { type: integer }
+        message: { type: string }
+        createdAt: { type: string }
+    Statistics:
+      type: object
+      required: [rainfall, duration, critical, high, moderate, low, reports, activeAlerts, affectedRoads]
+      properties:
+        rainfall: { type: number }
+        duration: { type: number }
+        critical: { type: integer }
+        high: { type: integer }
+        moderate: { type: integer }
+        low: { type: integer }
+        reports: { type: integer }
+        activeAlerts: { type: integer }
+        affectedRoads: { type: integer }
+    SimulationInput:
+      type: object
+      required: [rainfall, duration]
+      properties:
+        rainfall: { type: number, minimum: 20, maximum: 100 }
+        duration: { type: number, minimum: 1, maximum: 6 }
+    SimulationResult:
+      type: object
+      required: [rainfall, duration, critical, high, moderate, low, zones, alerts, engine]
+      properties:
+        rainfall: { type: number }
+        duration: { type: number }
+        critical: { type: integer }
+        high: { type: integer }
+        moderate: { type: integer }
+        low: { type: integer }
+        zones:
+          type: array
+          items:
+            $ref: "#/components/schemas/Zone"
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Alert"
+        engine: { type: string }
+
